@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import sys
 
 from multiarea_model import MultiAreaModel
 from config import base_path
@@ -31,8 +32,9 @@ network_params = {'N_scaling': 0.01,
                   'neuron_params': neuron_params}
 
 sim_params = {'t_sim': 2000.,
-              'num_processes': 1,
+              'num_processes': 2,
               'local_num_threads': 1,
+              'morph': True,
               'recording_dict': {'record_vm': False}}
 
 theory_params = {'dt': 0.1}

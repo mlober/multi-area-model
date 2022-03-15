@@ -191,6 +191,28 @@ class Simulation:
             status_dict.update({'label': label})
             nest.SetStatus(self.voltmeter, status_dict)
 
+    def create_neurons(self):
+        """
+        Create all neurons of MAM at once. (Create more neurons than necessary to enable splitting.)
+        """
+        total_num_neurons_per_area = []
+        for key in self.network.N:
+            total_num_neurons_per_area.append(self.network.N[key]['total'])
+        self.max_num_neurons_per_area = int(max(total_num_neurons_per_area))
+
+        total_num_neurons = self.max_num_neurons_per_area * len(self.areas_simulated)
+        self.all_neurons = nest.Create(self.network.params['neuron_params']['neuron_model'], total_num_neurons)
+        
+    def assign_areas(self):
+        """
+        Assign respective neurons to areas and create internal connections.
+        """
+        self.areas = []
+        for area_name in self.areas_simulated:
+            a = Area(self, self.network, area_name)
+            self.areas.append(a)
+            print("Memory after {0} : {1:.2f} MB".format(area_name, self.memory() / 1024.))
+    
     def create_areas(self):
         """
         Create all areas with their populations and internal connections.
@@ -291,7 +313,11 @@ class Simulation:
         print("Prepared simulation in {0:.2f} seconds.".format(self.time_prepare))
 
         self.create_recording_devices()
-        self.create_areas()
+        if self.custom_params['morph'] == True:
+            self.create_neurons()
+            self.assign_areas()
+        else:
+            self.create_areas()     
         t2 = time.time()
         self.time_network_local = t2 - t1
         print("Created areas and internal connections in {0:.2f} seconds.".format(
@@ -437,13 +463,21 @@ class Area:
 
     def create_populations(self):
         """
-        Create all populations of the area.
+        Assign neurons to populations of the area.
         """
         self.gids = {}
         self.num_local_nodes = 0
+        num_areas = len(self.simulation.areas_simulated)
+        area_idx = self.simulation.areas_simulated.index(self.name)
+        start_idx_pop = 0
         for pop in self.populations:
-            gid = nest.Create(self.network.params['neuron_params']['neuron_model'],
-                              int(self.neuron_numbers[pop]))
+            if self.simulation.custom_params['morph'] == True:
+                end_idx_pop = start_idx_pop + int(self.neuron_numbers[pop])
+                gid = self.simulation.all_neurons[area_idx+start_idx_pop*num_areas:area_idx+end_idx_pop*num_areas:num_areas]
+                start_idx_pop = end_idx_pop
+            else:
+                gid = nest.Create(self.network.params['neuron_params']['neuron_model'], int(self.neuron_numbers[pop]))
+            
             mask = create_vector_mask(self.network.structure, areas=[self.name], pops=[pop])
             I_e = self.network.add_DC_drive[mask][0]
             if not self.network.params['input_params']['poisson_input']:
