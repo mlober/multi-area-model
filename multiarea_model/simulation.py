@@ -200,13 +200,14 @@ class Simulation:
 
         total_num_neurons = max_num_neurons_per_area * len(self.areas_simulated)
         self.all_neurons = nest.Create(self.network.params['neuron_params']['neuron_model'], total_num_neurons)
+        nest.SetStatus(self.all_neurons, 'frozen', True)
         
     def create_areas(self):
         """
         Create all areas with their populations and internal connections.
         """
         self.areas = []
-        for area_name in self.areas_simulated[:2]:
+        for area_name in self.areas_simulated:
             a = Area(self, self.network, area_name)
             self.areas.append(a)
             print("Memory after {0} : {1:.2f} MB".format(area_name, self.memory() / 1024.))
@@ -462,11 +463,10 @@ class Area:
             if self.simulation.custom_params['morph'] == True:
                 end_idx_pop = start_idx_pop + int(self.neuron_numbers[pop])
                 gid = self.simulation.all_neurons[area_idx+start_idx_pop*num_areas:area_idx+end_idx_pop*num_areas:num_areas]
+                nest.SetStatus(gid, 'frozen', False)
                 start_idx_pop = end_idx_pop
             else:
                 gid = nest.Create(self.network.params['neuron_params']['neuron_model'], int(self.neuron_numbers[pop]))
-            
-            print(nest.GetStatus(gid, 'vp'))
                         
             mask = create_vector_mask(self.network.structure, areas=[self.name], pops=[pop])
             I_e = self.network.add_DC_drive[mask][0]
